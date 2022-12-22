@@ -32,8 +32,6 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.util.SparseLongArray;
 
-import androidx.annotation.NonNull;
-
 import com.android.launcher3.icons.cache.BaseIconCache;
 
 /**
@@ -66,7 +64,7 @@ public class SimpleIconCache extends BaseIconCache {
     }
 
     @Override
-    protected long getSerialNumberForUser(@NonNull UserHandle user) {
+    protected long getSerialNumberForUser(UserHandle user) {
         synchronized (mUserSerialMap) {
             int index = mUserSerialMap.indexOfKey(user.getIdentifier());
             if (index >= 0) {
@@ -85,11 +83,10 @@ public class SimpleIconCache extends BaseIconCache {
     }
 
     @Override
-    protected boolean isInstantApp(@NonNull ApplicationInfo info) {
+    protected boolean isInstantApp(ApplicationInfo info) {
         return info.isInstantApp();
     }
 
-    @NonNull
     @Override
     public BaseIconFactory getIconFactory() {
         return IconFactory.obtain(mContext);

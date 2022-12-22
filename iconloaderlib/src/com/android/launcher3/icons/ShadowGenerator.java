@@ -24,7 +24,6 @@ import android.graphics.BlurMaskFilter.Blur;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
@@ -59,17 +58,22 @@ public class ShadowGenerator {
     }
 
     public synchronized void recreateIcon(Bitmap icon, Canvas out) {
+        recreateIcon(icon, mDefaultBlurMaskFilter, AMBIENT_SHADOW_ALPHA, KEY_SHADOW_ALPHA, out);
+    }
+
+    public synchronized void recreateIcon(Bitmap icon, BlurMaskFilter blurMaskFilter,
+            int ambientAlpha, int keyAlpha, Canvas out) {
         if (ENABLE_SHADOWS) {
             int[] offset = new int[2];
-            mBlurPaint.setMaskFilter(mDefaultBlurMaskFilter);
+            mBlurPaint.setMaskFilter(blurMaskFilter);
             Bitmap shadow = icon.extractAlpha(mBlurPaint, offset);
 
             // Draw ambient shadow
-            mDrawPaint.setAlpha(AMBIENT_SHADOW_ALPHA);
+            mDrawPaint.setAlpha(ambientAlpha);
             out.drawBitmap(shadow, offset[0], offset[1], mDrawPaint);
 
             // Draw key shadow
-            mDrawPaint.setAlpha(KEY_SHADOW_ALPHA);
+            mDrawPaint.setAlpha(keyAlpha);
             out.drawBitmap(shadow, offset[0], offset[1] + KEY_SHADOW_DISTANCE * mIconSize,
                     mDrawPaint);
         }
@@ -77,26 +81,6 @@ public class ShadowGenerator {
         // Draw the icon
         mDrawPaint.setAlpha(255);
         out.drawBitmap(icon, 0, 0, mDrawPaint);
-    }
-
-    /** package private **/
-    void addPathShadow(Path path, Canvas out) {
-        if (ENABLE_SHADOWS) {
-            mDrawPaint.setMaskFilter(mDefaultBlurMaskFilter);
-
-            // Draw ambient shadow
-            mDrawPaint.setAlpha(AMBIENT_SHADOW_ALPHA);
-            out.drawPath(path, mDrawPaint);
-
-            // Draw key shadow
-            int save = out.save();
-            mDrawPaint.setAlpha(KEY_SHADOW_ALPHA);
-            out.translate(0, KEY_SHADOW_DISTANCE * mIconSize);
-            out.drawPath(path, mDrawPaint);
-            out.restoreToCount(save);
-
-            mDrawPaint.setMaskFilter(null);
-        }
     }
 
     /**

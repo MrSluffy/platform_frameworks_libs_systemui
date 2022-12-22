@@ -18,9 +18,6 @@ package com.android.launcher3.icons;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.util.SparseArray;
-
-import androidx.annotation.NonNull;
-
 import java.util.Arrays;
 
 /**
@@ -29,24 +26,16 @@ import java.util.Arrays;
 public class ColorExtractor {
 
     private final int NUM_SAMPLES = 20;
-
-    @NonNull
     private final float[] mTmpHsv = new float[3];
-
-    @NonNull
     private final float[] mTmpHueScoreHistogram = new float[360];
-
-    @NonNull
     private final int[] mTmpPixels = new int[NUM_SAMPLES];
-
-    @NonNull
     private final SparseArray<Float> mTmpRgbScores = new SparseArray<>();
 
     /**
      * This picks a dominant color, looking for high-saturation, high-value, repeated hues.
      * @param bitmap The bitmap to scan
      */
-    public int findDominantColorByHue(@NonNull final Bitmap bitmap) {
+    public int findDominantColorByHue(Bitmap bitmap) {
         return findDominantColorByHue(bitmap, NUM_SAMPLES);
     }
 
@@ -54,7 +43,7 @@ public class ColorExtractor {
      * This picks a dominant color, looking for high-saturation, high-value, repeated hues.
      * @param bitmap The bitmap to scan
      */
-    public int findDominantColorByHue(@NonNull final Bitmap bitmap, final int samples) {
+    public int findDominantColorByHue(Bitmap bitmap, int samples) {
         final int height = bitmap.getHeight();
         final int width = bitmap.getWidth();
         int sampleStride = (int) Math.sqrt((height * width) / samples);

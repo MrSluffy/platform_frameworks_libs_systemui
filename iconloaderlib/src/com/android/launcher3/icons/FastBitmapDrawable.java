@@ -16,9 +16,6 @@
 
 package com.android.launcher3.icons;
 
-import static com.android.launcher3.icons.BaseIconFactory.getBadgeSizeForIconSize;
-import static com.android.launcher3.icons.GraphicsUtils.setColorAlphaBound;
-
 import android.animation.ObjectAnimator;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -30,30 +27,29 @@ import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.util.FloatProperty;
+import android.util.Property;
 import android.view.animation.AccelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
 
 import androidx.annotation.Nullable;
-import androidx.core.graphics.ColorUtils;
 
-public class FastBitmapDrawable extends Drawable implements Drawable.Callback {
+public class FastBitmapDrawable extends Drawable {
 
     private static final Interpolator ACCEL = new AccelerateInterpolator();
     private static final Interpolator DEACCEL = new DecelerateInterpolator();
 
     private static final float PRESSED_SCALE = 1.1f;
-    public static final int WHITE_SCRIM_ALPHA = 138;
 
     private static final float DISABLED_DESATURATION = 1f;
     private static final float DISABLED_BRIGHTNESS = 0.5f;
-    protected static final int FULLY_OPAQUE = 255;
 
     public static final int CLICK_FEEDBACK_DURATION = 200;
 
+    private static ColorFilter sDisabledFColorFilter;
+
     protected final Paint mPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
-    protected final Bitmap mBitmap;
+    protected Bitmap mBitmap;
     protected final int mIconColor;
 
     @Nullable private ColorFilter mColorFilter;
@@ -63,24 +59,23 @@ public class FastBitmapDrawable extends Drawable implements Drawable.Callback {
     float mDisabledAlpha = 1f;
 
     // Animator and properties for the fast bitmap drawable's scale
-    private static final FloatProperty<FastBitmapDrawable> SCALE
-            = new FloatProperty<FastBitmapDrawable>("scale") {
+    private static final Property<FastBitmapDrawable, Float> SCALE
+            = new Property<FastBitmapDrawable, Float>(Float.TYPE, "scale") {
         @Override
         public Float get(FastBitmapDrawable fastBitmapDrawable) {
             return fastBitmapDrawable.mScale;
         }
 
         @Override
-        public void setValue(FastBitmapDrawable fastBitmapDrawable, float value) {
+        public void set(FastBitmapDrawable fastBitmapDrawable, Float value) {
             fastBitmapDrawable.mScale = value;
             fastBitmapDrawable.invalidateSelf();
         }
     };
     private ObjectAnimator mScaleAnimation;
     private float mScale = 1;
-    private int mAlpha = 255;
 
-    private Drawable mBadge;
+    private int mAlpha = 255;
 
     public FastBitmapDrawable(Bitmap b) {
         this(b, Color.TRANSPARENT);
@@ -91,21 +86,14 @@ public class FastBitmapDrawable extends Drawable implements Drawable.Callback {
     }
 
     protected FastBitmapDrawable(Bitmap b, int iconColor) {
+        this(b, iconColor, false);
+    }
+
+    protected FastBitmapDrawable(Bitmap b, int iconColor, boolean isDisabled) {
         mBitmap = b;
         mIconColor = iconColor;
         setFilterBitmap(true);
-    }
-
-    @Override
-    protected void onBoundsChange(Rect bounds) {
-        super.onBoundsChange(bounds);
-        updateBadgeBounds(bounds);
-    }
-
-    private void updateBadgeBounds(Rect bounds) {
-        if (mBadge != null) {
-            setBadgeBounds(mBadge, bounds);
-        }
+        setIsDisabled(isDisabled);
     }
 
     @Override
@@ -115,15 +103,9 @@ public class FastBitmapDrawable extends Drawable implements Drawable.Callback {
             Rect bounds = getBounds();
             canvas.scale(mScale, mScale, bounds.exactCenterX(), bounds.exactCenterY());
             drawInternal(canvas, bounds);
-            if (mBadge != null) {
-                mBadge.draw(canvas);
-            }
             canvas.restoreToCount(count);
         } else {
             drawInternal(canvas, getBounds());
-            if (mBadge != null) {
-                mBadge.draw(canvas);
-            }
         }
     }
 
@@ -132,11 +114,10 @@ public class FastBitmapDrawable extends Drawable implements Drawable.Callback {
     }
 
     /**
-     * Returns the primary icon color, slightly tinted white
+     * Returns the primary icon color
      */
     public int getIconColor() {
-        int whiteScrim = setColorAlphaBound(Color.WHITE, WHITE_SCRIM_ALPHA);
-        return ColorUtils.compositeColors(whiteScrim, mIconColor);
+        return mIconColor;
     }
 
     /**
@@ -270,48 +251,27 @@ public class FastBitmapDrawable extends Drawable implements Drawable.Callback {
         return mIsDisabled;
     }
 
-    public void setBadge(Drawable badge) {
-        if (mBadge != null) {
-            mBadge.setCallback(null);
+    private ColorFilter getDisabledColorFilter() {
+        if (sDisabledFColorFilter == null) {
+            sDisabledFColorFilter = getDisabledFColorFilter(mDisabledAlpha);
         }
-        mBadge = badge;
-        if (mBadge != null) {
-            mBadge.setCallback(this);
-        }
-        updateBadgeBounds(getBounds());
-        updateFilter();
+        return sDisabledFColorFilter;
     }
 
     /**
      * Updates the paint to reflect the current brightness and saturation.
      */
     protected void updateFilter() {
-        mPaint.setColorFilter(mIsDisabled ? getDisabledColorFilter(mDisabledAlpha) : mColorFilter);
-        if (mBadge != null) {
-            mBadge.setColorFilter(getColorFilter());
-        }
+        mPaint.setColorFilter(mIsDisabled ? getDisabledColorFilter() : mColorFilter);
         invalidateSelf();
     }
 
-    protected FastBitmapConstantState newConstantState() {
-        return new FastBitmapConstantState(mBitmap, mIconColor);
-    }
-
     @Override
-    public final ConstantState getConstantState() {
-        FastBitmapConstantState cs = newConstantState();
-        cs.mIsDisabled = mIsDisabled;
-        if (mBadge != null) {
-            cs.mBadgeConstantState = mBadge.getConstantState();
-        }
-        return cs;
+    public ConstantState getConstantState() {
+        return new FastBitmapConstantState(mBitmap, mIconColor, mIsDisabled);
     }
 
-    public static ColorFilter getDisabledColorFilter() {
-        return getDisabledColorFilter(1);
-    }
-
-    private static ColorFilter getDisabledColorFilter(float disabledAlpha) {
+    public static ColorFilter getDisabledFColorFilter(float disabledAlpha) {
         ColorMatrix tempBrightnessMatrix = new ColorMatrix();
         ColorMatrix tempFilterMatrix = new ColorMatrix();
 
@@ -330,68 +290,20 @@ public class FastBitmapDrawable extends Drawable implements Drawable.Callback {
         return new ColorMatrixColorFilter(tempFilterMatrix);
     }
 
-    protected static final int getDisabledColor(int color) {
-        int component = (Color.red(color) + Color.green(color) + Color.blue(color)) / 3;
-        float scale = 1 - DISABLED_BRIGHTNESS;
-        int brightnessI = (int) (255 * DISABLED_BRIGHTNESS);
-        component = Math.min(Math.round(scale * component + brightnessI), FULLY_OPAQUE);
-        return Color.rgb(component, component, component);
-    }
-
-    /**
-     * Sets the bounds for the badge drawable based on the main icon bounds
-     */
-    public static void setBadgeBounds(Drawable badge, Rect iconBounds) {
-        int size = getBadgeSizeForIconSize(iconBounds.width());
-        badge.setBounds(iconBounds.right - size, iconBounds.bottom - size,
-                iconBounds.right, iconBounds.bottom);
-    }
-
-    @Override
-    public void invalidateDrawable(Drawable who) {
-        if (who == mBadge) {
-            invalidateSelf();
-        }
-    }
-
-    @Override
-    public void scheduleDrawable(Drawable who, Runnable what, long when) {
-        if (who == mBadge) {
-            scheduleSelf(what, when);
-        }
-    }
-
-    @Override
-    public void unscheduleDrawable(Drawable who, Runnable what) {
-        unscheduleSelf(what);
-    }
-
     protected static class FastBitmapConstantState extends ConstantState {
         protected final Bitmap mBitmap;
         protected final int mIconColor;
+        protected final boolean mIsDisabled;
 
-        // These are initialized later so that subclasses don't need to
-        // pass everything in constructor
-        protected boolean mIsDisabled;
-        private ConstantState mBadgeConstantState;
-
-        public FastBitmapConstantState(Bitmap bitmap, int color) {
+        public FastBitmapConstantState(Bitmap bitmap, int color, boolean isDisabled) {
             mBitmap = bitmap;
             mIconColor = color;
-        }
-
-        protected FastBitmapDrawable createDrawable() {
-            return new FastBitmapDrawable(mBitmap, mIconColor);
+            mIsDisabled = isDisabled;
         }
 
         @Override
-        public final FastBitmapDrawable newDrawable() {
-            FastBitmapDrawable drawable = createDrawable();
-            drawable.setIsDisabled(mIsDisabled);
-            if (mBadgeConstantState != null) {
-                drawable.setBadge(mBadgeConstantState.newDrawable());
-            }
-            return drawable;
+        public FastBitmapDrawable newDrawable() {
+            return new FastBitmapDrawable(mBitmap, mIconColor, mIsDisabled);
         }
 
         @Override
